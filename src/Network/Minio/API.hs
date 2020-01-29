@@ -129,7 +129,7 @@ buildRequest ri = do
     timeStamp <- liftIO Time.getCurrentTime
 
     let sp = SignParams (connectAccessKey ci') (connectSecretKey ci')
-             timeStamp (riRegion ri') Nothing Nothing
+             timeStamp (riRegion ri') Nothing PayloadUnsigned
 
     -- Cases to handle:
     --
@@ -156,7 +156,7 @@ buildRequest ri = do
                          -- case 3 described above.
                        | otherwise -> do
                              pHash <- getPayloadSHA256Hash $ riPayload ri'
-                             return $ sp { spPayloadHash = Just pHash }
+                             return $ sp { spPayload = PayloadHashed pHash }
 
              let signHeaders = signV4 sp' baseRequest
              return $ baseRequest

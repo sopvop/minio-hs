@@ -56,13 +56,19 @@ data SignV4Data = SignV4Data {
     , sv4SigningKey       :: ByteString
     } deriving (Show)
 
+data Payload
+    = PayloadEmpty
+    | PayloadUnsigned
+    | PayloadHashed !ByteString
+    deriving (Show)
+
 data SignParams = SignParams {
-      spAccessKey   :: Text
-    , spSecretKey   :: Text
-    , spTimeStamp   :: UTCTime
-    , spRegion      :: Maybe Text
-    , spExpirySecs  :: Maybe Int
-    , spPayloadHash :: Maybe ByteString
+      spAccessKey  :: Text
+    , spSecretKey  :: Text
+    , spTimeStamp  :: UTCTime
+    , spRegion     :: Maybe Text
+    , spExpirySecs :: Maybe Int
+    , spPayload    :: Payload
     } deriving (Show)
 
 debugPrintSignV4Data :: SignV4Data -> IO ()
@@ -96,6 +102,15 @@ mkAuthHeader accessKey scope signedHeaderKeys sign =
                     ]
     in (H.hAuthorization, authValue)
 
+mkSha256Header :: Payload -> Maybe (ByteString, ByteString)
+mkSha256Header p = (,) "x-amz-content-sha256" <$> getPayloadHash p
+
+getPayloadHash :: Payload -> Maybe ByteString
+getPayloadHash payload = case payload of
+  PayloadEmpty    -> Nothing
+  PayloadUnsigned -> Just "UNSIGNED-PAYLOAD"
+  PayloadHashed h -> Just h
+
 -- | Given SignParams and request details, including request method,
 -- request path, headers, query params and payload hash, generates an
 -- updated set of headers, including the x-amz-date header and the
@@ -120,10 +135,11 @@ signV4 !sp !req =
 
     -- headers to be added to the request
     datePair = ("X-Amz-Date", awsTimeFormatBS ts)
+    sha256Hdr = mkSha256Header $ spPayload sp
+    nameToCI (k,v) = (mk k, v)
     computedHeaders = NC.requestHeaders req ++
-                      if isJust $ expiry
-                      then []
-                      else [(\(x, y) -> (mk x, y)) datePair]
+      map nameToCI
+      (catMaybes [ maybe (Just datePair) (const Nothing) expiry, sha256Hdr ])
     headersToSign = getHeadersToSign computedHeaders
     signedHeaderKeys = B.intercalate ";" $ sort $ map fst headersToSign
 
@@ -157,13 +173,10 @@ signV4 !sp !req =
     -- 4. compute auth header
     authHeader = mkAuthHeader (spAccessKey sp) scope signedHeaderKeys signature
 
-    -- finally compute output pairs
-    sha256Hdr = ("x-amz-content-sha256",
-                 fromMaybe "UNSIGNED-PAYLOAD" $ spPayloadHash sp)
+    caseFoldKey (k,v) = (CI.foldedCase k, v)
     output = if isJust expiry
              then ("X-Amz-Signature", signature) : authQP
-             else [(\(x, y) -> (CI.foldedCase x, y)) authHeader,
-                   datePair, sha256Hdr]
+             else [caseFoldKey authHeader, datePair] ++ maybeToList sha256Hdr
 
   in output
 
@@ -201,7 +214,7 @@ mkCanonicalRequest !isStreaming !sp !req !headersForSign =
     payloadHashStr =
         if isStreaming
         then "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
-        else fromMaybe "UNSIGNED-PAYLOAD" $ spPayloadHash sp
+        else fromMaybe "UNSIGNED-PAYLOAD" . getPayloadHash $ spPayload sp
   in
     B.intercalate "\n"
     [ NC.method req

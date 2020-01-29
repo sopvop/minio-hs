@@ -84,7 +84,7 @@ makePresignedUrl expiry method bucket object region extraQuery extraHeaders = do
   ts <- liftIO Time.getCurrentTime
 
   let sp = SignParams (connectAccessKey ci) (connectSecretKey ci)
-           ts region (Just expiry) Nothing
+           ts region (Just expiry) PayloadEmpty
 
       signPairs = signV4 sp req
 
@@ -269,7 +269,7 @@ presignedPostPolicy p = do
       conditions = conditions p ++ extraConditions
       }
     sp = SignParams (connectAccessKey ci) (connectSecretKey ci)
-         signTime (Just $ connectRegion ci) Nothing Nothing
+         signTime (Just $ connectRegion ci) Nothing PayloadEmpty
     signData = signV4PostPolicy (showPostPolicy ppWithCreds) sp
 
 

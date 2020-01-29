@@ -538,7 +538,7 @@ buildAdminRequest areq = do
                        }
         signReq = toRequest ci newAreq
         sp = SignParams (connectAccessKey ci) (connectSecretKey ci)
-             timeStamp Nothing Nothing (ariPayloadHash newAreq)
+             timeStamp Nothing Nothing (PayloadHashed sha256Hash)
         signHeaders = signV4 sp signReq
 
     -- Update signReq with Authorization header containing v4 signature
