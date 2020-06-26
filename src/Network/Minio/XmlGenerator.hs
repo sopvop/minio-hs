@@ -19,6 +19,7 @@ module Network.Minio.XmlGenerator
   , mkCompleteMultipartUploadRequest
   , mkPutNotificationRequest
   , mkSelectRequest
+  , mkCORSConfig
   ) where
 
 
@@ -163,3 +164,19 @@ mkSelectRequest r = LBS.toStrict $ renderLBS def sr
     rdElem Nothing = []
     rdElem (Just t) = [NodeElement $ Element "RecordDelimiter" mempty
                         [NodeContent t]]
+
+mkCORSConfig :: [CORSRule] -> ByteString
+mkCORSConfig rules = LBS.toStrict $ renderLBS def sr
+  where
+    sr = Document (Prologue [] Nothing []) root []
+    root = Element "CORSConfiguration" mempty
+      $ NodeElement . Element "CORSRule" mempty . makeRule <$> rules
+    makeRule r = concat
+      [ mkKV "AllowedOrigin" <$> corsAllowedOrigins r
+      , mkKV "AllowedHeader" <$> corsAllowedHeaders r
+      , mkKV "AllowedMethod" <$> corsAllowedMethods r
+      , mkKV "ExposeHeader" <$> corsExposeHeaders r
+      , maybe [] (pure . mkKV "MaxAgeSeconds" . T.pack . show)
+        $ corsMaxAgeSeconds r
+      ]
+    mkKV name txt = NodeElement $ Element name mempty [NodeContent txt]

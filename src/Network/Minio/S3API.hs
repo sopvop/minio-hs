@@ -89,6 +89,12 @@ module Network.Minio.S3API
   , getBucketNotification
   , putBucketNotification
   , removeAllBucketNotification
+
+  -- * CORS Configuration
+  -----------------------
+  , CORSRule(..)
+  , getBucketCors
+  , putBucketCors
   ) where
 
 import qualified Data.ByteString                   as BS
@@ -521,3 +527,23 @@ deleteBucketPolicy bucket = do
                               , riBucket = Just bucket
                               , riQueryParams = [("policy", Nothing)]
                               }
+
+-- | Set CORS configuration for a bucket
+putBucketCors :: Bucket -> [CORSRule] -> Minio ()
+putBucketCors bucket rules = do
+  void $ executeRequest $ defaultS3ReqInfo
+    { riMethod = HT.methodPut
+    , riBucket = Just bucket
+    , riQueryParams = [("cors", Nothing)]
+    , riPayload = PayloadBS $ mkCORSConfig rules
+    }
+
+-- | Get CORS configuration of a bucket
+getBucketCors :: Bucket -> Minio [CORSRule]
+getBucketCors bucket = do
+  resp <- executeRequest $ defaultS3ReqInfo
+    { riMethod = HT.methodGet
+    , riBucket = Just bucket
+    , riQueryParams = [("cors", Nothing)]
+    }
+  parseCORSConfig $ NC.responseBody resp

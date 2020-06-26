@@ -27,6 +27,7 @@ module Network.Minio.XmlParser
   , parseErrResponse
   , parseNotification
   , parseSelectProgress
+  , parseCORSConfig
   ) where
 
 import qualified Data.ByteString.Lazy as LB
@@ -275,3 +276,19 @@ parseSelectProgress xmldata = do
     Progress <$> parseDecimal bScanned
              <*> parseDecimal bProcessed
              <*> parseDecimal bReturned
+
+parseCORSConfig :: (MonadIO m, MonadReader env m, HasSvcNamespace env)
+                => LByteString-> m [CORSRule]
+parseCORSConfig xmldata = do
+  r <- parseRoot xmldata
+  let
+    rules = r $/ element "CORSRule"
+    texts v nm = v $/ element nm &/ content
+    parseRule rule =
+      CORSRule
+      (texts rule "AllowedOrigin")
+      (texts rule "AllowedMethod")
+      (texts rule "AllowedHeader")
+      (texts rule "ExposedHeader")
+      <$> (traverse parseDecimal . listToMaybe $ texts rule "MaxAgeSeconds")
+  mapM parseRule rules

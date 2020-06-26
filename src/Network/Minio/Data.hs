@@ -658,6 +658,14 @@ defaultNotification :: Notification
 defaultNotification = Notification [] [] []
 
 
+data CORSRule = CORSRule
+  { corsAllowedOrigins :: [Text]
+  , corsAllowedMethods :: [Text]
+  , corsAllowedHeaders :: [Text]
+  , corsExposeHeaders  :: [Text]
+  , corsMaxAgeSeconds  :: Maybe Int
+  } deriving (Eq, Show)
+
 --------------------------------------------------------------------------
 -- Select API Related Types
 --------------------------------------------------------------------------
