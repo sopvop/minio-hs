@@ -436,15 +436,17 @@ listIncompleteParts' bucket object uploadId maxParts partNumMarker = do
 -- | Get metadata of an object.
 headObject :: Bucket -> Object -> [HT.Header] -> Minio ObjectInfo
 headObject bucket object reqHeaders = do
-  resp <- executeRequest $ defaultS3ReqInfo { riMethod = HT.methodHead
-                                            , riBucket = Just bucket
-                                            , riObject = Just object
-                                            , riHeaders = reqHeaders
-                                            }
+  resp <- executeRequest $ defaultS3ReqInfo
+    { riMethod = HT.methodHead
+    , riBucket = Just bucket
+    , riObject = Just object
+    , riHeaders = encHeader:reqHeaders
+    }
 
   maybe (throwIO MErrVInvalidObjectInfoResponse) return $
     parseGetObjectHeaders object $ NC.responseHeaders resp
-
+  where
+    encHeader = ("Accept-Encoding", "identity")
 
 -- | Query the object store if a given bucket exists.
 headBucket :: Bucket -> Minio Bool
