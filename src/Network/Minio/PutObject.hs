@@ -29,6 +29,7 @@ import qualified Data.Conduit.Binary      as CB
 import qualified Data.Conduit.Combinators as CC
 import qualified Data.Conduit.List        as CL
 import qualified Data.List                as List
+import           UnliftIO.Async           (pooledMapConcurrentlyN)
 
 
 import           Lib.Prelude
@@ -109,7 +110,7 @@ parallelMultipartUpload b o opts filePath size = do
   let threads = fromMaybe 10 $ pooNumThreads opts
 
   -- perform upload with 'threads' threads
-  uploadedPartsE <- limitedMapConcurrently (fromIntegral threads)
+  uploadedPartsE <- pooledMapConcurrentlyN (fromIntegral threads)
                     (uploadPart uploadId) partSizeInfo
 
   -- if there were any errors, rethrow exception.

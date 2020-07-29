@@ -35,7 +35,6 @@ import qualified Network.HTTP.Types            as HT
 import qualified Network.HTTP.Types.Header     as Hdr
 import qualified System.IO                     as IO
 import qualified UnliftIO                      as U
-import qualified UnliftIO.Async                as A
 import qualified UnliftIO.MVar                 as UM
 
 import           Lib.Prelude
@@ -192,30 +191,6 @@ http req mgr = do
     tryHttpEx = try
     contentTypeMay resp = lookupHeader Hdr.hContentType $
                           NC.responseHeaders resp
-
--- Similar to mapConcurrently but limits the number of threads that
--- can run using a quantity semaphore.
-limitedMapConcurrently :: MonadUnliftIO m
-                       => Int -> (t -> m a) -> [t] -> m [a]
-limitedMapConcurrently 0 _ _ = return []
-limitedMapConcurrently count act args = do
-  t' <- U.newTVarIO count
-  threads <- mapM (A.async . wThread t') args
-  mapM A.wait threads
-  where
-    wThread t arg =
-      U.bracket_ (waitSem t) (signalSem t) $ act arg
-
-    -- quantity semaphore implementation using TVar
-    waitSem t = U.atomically $ do
-      v <- U.readTVar t
-      if v > 0
-      then U.writeTVar t (v-1)
-      else U.retrySTM
-
-    signalSem t = U.atomically $ do
-      v <- U.readTVar t
-      U.writeTVar t (v+1)
 
 -- helper function to 'drop' empty optional parameter.
 mkQuery :: Text -> Maybe Text -> Maybe (Text, Text)

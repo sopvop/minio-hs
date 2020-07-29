@@ -17,6 +17,7 @@
 module Network.Minio.CopyObject where
 
 import qualified Data.List            as List
+import           UnliftIO.Async       (pooledMapConcurrentlyN)
 
 import           Lib.Prelude
 
@@ -82,7 +83,7 @@ multiPartCopyObject b o cps srcSize = do
                     partRanges
       dstInfo = defaultDestinationInfo { dstBucket = b, dstObject = o}
 
-  copiedParts <- limitedMapConcurrently 10
+  copiedParts <- pooledMapConcurrentlyN 10
                  (\(pn, cps') -> do
                      (etag, _) <- copyObjectPart dstInfo cps' uid pn []
                      return (pn, etag)
