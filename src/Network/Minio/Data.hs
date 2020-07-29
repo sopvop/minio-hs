@@ -457,6 +457,18 @@ data ObjectInfo = ObjectInfo
                                           -- user-metadata pairs)
   } deriving (Show, Eq)
 
+data SourceMeta
+  = SourceMetaCopy
+  | SourceMetaReplace [(Text, Text)]
+  deriving (Show, Eq)
+
+sourceMetaToHeaders :: SourceMeta -> [Header]
+sourceMetaToHeaders SourceMetaCopy =
+  [("x-amz-metadata-directive", "COPY")]
+sourceMetaToHeaders (SourceMetaReplace m) =
+  ("x-amz-metadata-directive", "REPLACE")
+  : mkHeaderFromMetadata m
+
 -- | Represents source object in server-side copy object
 data SourceInfo = SourceInfo
   { srcBucket            :: Text -- ^ Bucket containing the source object
@@ -479,11 +491,13 @@ data SourceInfo = SourceInfo
                                           -- if the source has been
                                           -- un-modified since this
                                           -- given time.
+  , srcMeta              :: SourceMeta -- ^ Metadata source
   } deriving (Show, Eq)
 
 -- | Provide a default for `SourceInfo`
 defaultSourceInfo :: SourceInfo
 defaultSourceInfo = SourceInfo "" "" Nothing Nothing Nothing Nothing Nothing
+                    SourceMetaCopy
 
 -- | Represents destination object in server-side copy object
 data DestinationInfo = DestinationInfo

@@ -362,7 +362,9 @@ copyObjectSingle bucket object srcInfo headers = do
           defaultS3ReqInfo { riMethod = HT.methodPut
               , riBucket = Just bucket
               , riObject = Just object
-              , riHeaders = headers ++ srcInfoToHeaders srcInfo
+              , riHeaders = headers
+                            ++ srcInfoToHeaders srcInfo
+                            ++ sourceMetaToHeaders (srcMeta srcInfo)
               }
   parseCopyObjectResponse $ NC.responseBody resp
 

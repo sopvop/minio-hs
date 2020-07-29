@@ -16,6 +16,7 @@
 
 module Network.Minio.CopyObject where
 
+import qualified Data.HashMap.Strict  as H
 import qualified Data.List            as List
 import           UnliftIO.Async       (pooledMapConcurrentlyN)
 
@@ -75,7 +76,12 @@ selectCopyRanges (st, end) = zip pns $
 multiPartCopyObject :: Bucket -> Object -> SourceInfo -> Int64
                     -> Minio ETag
 multiPartCopyObject b o cps srcSize = do
-  uid <- newMultipartUpload b o []
+  meta <- case srcMeta cps of
+    SourceMetaCopy ->
+      H.toList . oiUserMetadata
+        <$> headObject (srcBucket cps) (srcObject cps) []
+    SourceMetaReplace m -> pure m
+  uid <- newMultipartUpload b o $ mkHeaderFromMetadata meta
 
   let byteRange = maybe (0, fromIntegral $ srcSize - 1) identity $ srcRange cps
       partRanges = selectCopyRanges byteRange

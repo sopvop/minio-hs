@@ -162,6 +162,8 @@ module Network.Minio
   , srcIfNoneMatch
   , srcIfModifiedSince
   , srcIfUnmodifiedSince
+  , srcMeta
+  , SourceMeta(..)
   , DestinationInfo
   , defaultDestinationInfo
   , dstBucket
