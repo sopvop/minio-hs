@@ -19,7 +19,7 @@ module Network.Minio.APICommon where
 import qualified Conduit                   as C
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Lazy      as LB
-import           Data.Conduit.Binary       (sourceHandleRange)
+import           Data.Conduit.Binary       (sourceHandleRangeWithBuffer)
 import qualified Network.HTTP.Conduit      as NC
 import qualified Network.HTTP.Types        as HT
 
@@ -29,6 +29,10 @@ import           Network.Minio.Data
 import           Network.Minio.Data.Crypto
 import           Network.Minio.Errors
 
+-- | 1mb, default buffer of 32k is too small
+defaultPayloadBufferSize :: Int
+defaultPayloadBufferSize = 1024*1024
+
 sha256Header :: ByteString -> HT.Header
 sha256Header = ("x-amz-content-sha256", )
 
@@ -37,18 +41,20 @@ sha256Header = ("x-amz-content-sha256", )
 getPayloadSHA256Hash :: Payload -> Minio ByteString
 getPayloadSHA256Hash (PayloadBS bs) = return $ hashSHA256 bs
 getPayloadSHA256Hash (PayloadH h off size) = hashSHA256FromSource $
-  sourceHandleRange h
+  sourceHandleRangeWithBuffer h
     (return . fromIntegral $ off)
     (return . fromIntegral $ size)
+    defaultPayloadBufferSize
 getPayloadSHA256Hash (PayloadC _ _) = throwIO MErrVUnexpectedPayload
 
 getRequestBody :: Payload -> NC.RequestBody
 getRequestBody (PayloadBS bs) = NC.RequestBodyBS bs
 getRequestBody (PayloadH h off size) =
   NC.requestBodySource (fromIntegral size) $
-    sourceHandleRange h
+    sourceHandleRangeWithBuffer h
       (return . fromIntegral $ off)
       (return . fromIntegral $ size)
+      defaultPayloadBufferSize
 getRequestBody (PayloadC n src) = NC.requestBodySource n src
 
 mkStreamingPayload :: Payload -> Payload
@@ -58,9 +64,10 @@ mkStreamingPayload payload =
         PayloadC (fromIntegral $ BS.length bs)
         (C.sourceLazy $ LB.fromStrict bs)
     PayloadH h off len ->
-        PayloadC len $ sourceHandleRange h
+        PayloadC len $ sourceHandleRangeWithBuffer h
         (return . fromIntegral $ off)
         (return . fromIntegral $ len)
+        defaultPayloadBufferSize
     _ -> payload
 
 isStreamingPayload :: Payload -> Bool
