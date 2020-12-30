@@ -123,6 +123,7 @@ module Network.Minio
   -- ** File-based operations
   , fGetObject
   , fPutObject
+  , fPutObject'
 
   -- ** Conduit-based streaming operations
   , putObject
@@ -254,6 +255,13 @@ fPutObject :: Bucket -> Object -> FilePath
            -> PutObjectOptions -> Minio ()
 fPutObject bucket object f opts =
   void $ putObjectInternal bucket object opts $ ODFile f Nothing
+
+-- | Upload the given file to the given object.
+fPutObject' :: Bucket -> Object -> FilePath
+           -> PutObjectOptions -> Minio ETag
+fPutObject' bucket object f opts =
+  putObjectInternal bucket object opts $ ODFile f Nothing
+
 
 -- | Put an object from a conduit source. The size can be provided if
 -- known; this helps the library select optimal part sizes to perform
